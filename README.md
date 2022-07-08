@@ -135,3 +135,106 @@ public enum DispatcherType {
 ![image](https://user-images.githubusercontent.com/60100532/177977796-5d5a1fe2-a3e8-4573-99b0-494ed437481d.png)
 
 ![image](https://user-images.githubusercontent.com/60100532/177977854-9a1045dd-c202-4f9b-9db5-c23ef75512b6.png)
+
+
+
+
+
+* #### API 예외 처리 - 스프링이 제공하는 ExceptionResolver1
+* 스프링 부트가 기본으로 제공하는 `ExceptionResolver` 는 다음과 같다.
+  `HandlerExceptionResolverComposite` 에 다음 순서로 등록
+1. ExceptionHandlerExceptionResolver
+2. ResponseStatusExceptionResolver
+3. DefaultHandlerExceptionResolver 우선 순위가 가장 낮다
+
+&nbsp;
+&nbsp;
+
+#### ExceptionHandlerExceptionResolver
+`@ExceptionHandler` 을 처리한다. API 예외 처리는 대부분 이 기능으로 해결한다.
+
+&nbsp;
+&nbsp;
+
+#### ResponseStatusExceptionResolver 
+HTTP 상태 코드를 지정해준다.
+예) `@ResponseStatus(value = HttpStatus.NOT_FOUND)`
+
+
+
+&nbsp;
+&nbsp;
+#### DefaultHandlerExceptionResolver
+스프링 내부 기본 예외를 처리한다.
+
+&nbsp;
+&nbsp;
+
+* ### ResponseStatusExceptionResolver
+![image](https://user-images.githubusercontent.com/60100532/178018892-9b69ba1c-25b6-42d4-89cd-e4c9568ae564.png)
+
+```java
+
+public class ResponseStatusExceptionResolver extends AbstractHandlerExceptionResolver implements MessageSourceAware {
+
+    @Nullable
+    private MessageSource messageSource;
+
+
+    @Override
+    public void setMessageSource(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+
+    @Override
+    @Nullable
+    protected ModelAndView doResolveException(
+            HttpServletRequest request, HttpServletResponse response, @Nullable Object handler, Exception ex) {
+
+        try {
+            if (ex instanceof ResponseStatusException) {
+                return resolveResponseStatusException((ResponseStatusException) ex, request, response, handler);
+            }
+
+            ResponseStatus status = AnnotatedElementUtils.findMergedAnnotation(ex.getClass(), ResponseStatus.class);
+            if (status != null) {
+                return resolveResponseStatus(status, request, response, handler, ex);
+            }
+
+
+
+
+
+    protected ModelAndView applyStatusAndReason(int statusCode, @Nullable String reason, HttpServletResponse response)
+    throws IOException {
+
+        if (!StringUtils.hasLength(reason)) {
+            response.sendError(statusCode);
+        }
+        else {
+            String resolvedReason = (this.messageSource != null ?
+                    this.messageSource.getMessage(reason, null, reason, LocaleContextHolder.getLocale()) :
+                    reason);
+            response.sendError(statusCode, resolvedReason);
+        }
+        return new ModelAndView();
+    }
+```
+
+
+`ResponseStatusExceptionResolver` 코드를 확인해보면 결국 `response.sendError(statusCode, resolvedReason)`를 호출한다. 
+
+reason을 메시지소스에서 찾는기능도 제공
+
+```java
+
+String resolvedReason = (this.messageSource != null ?
+					this.messageSource.getMessage(reason, null, reason, LocaleContextHolder.getLocale()) :
+					reason);
+			response.sendError(statusCode, resolvedReason);
+```
+
+
+* ### `DefaultHandlerExceptionResolver`
+* 
